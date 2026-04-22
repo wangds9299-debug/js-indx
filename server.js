@@ -492,6 +492,8 @@ app.post('/api/task/submit', secureAuth, rateLimit(20, 60000), async (req, res) 
         const dur = parseInt(taskBody?.duration) || 10;
         const vidCostMap = { 6: 60, 10: 100, 15: 150, 20: 200, 30: 300 };
         cost = vidCostMap[dur] || Math.ceil(dur * 10);
+    } else if (act === 'responses') {
+        cost = 10;
     } else {
         // 对于 image_gpt，它的 size 是比例字符串（如 "16:9", "auto"），不参与 resolution 计费，统一定价即可
         if (key === 'image_gpt') {

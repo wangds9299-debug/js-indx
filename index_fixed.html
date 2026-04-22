@@ -388,6 +388,20 @@
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-4"/><polyline points="7 11 7 7 12 3 17 7 17 11"/></svg>
                         消费记录
                     </button>
+                    <div class="relative group" id="helpMenuWrap">
+                        <button onclick="toggleHelpSubMenu(event)" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#171717] hover:bg-gray-50 rounded-xl transition-colors justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                帮助
+                            </div>
+                            <svg class="w-3 h-3 text-gray-400 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                        <!-- 子菜单 -->
+                        <div id="helpSubMenu" class="hidden absolute top-0 right-full mr-2 w-36 bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.1)] border border-gray-100 z-50 overflow-hidden py-1">
+                            <button onclick="showContactModal('联系我们');document.getElementById('userDropdown').classList.add('hidden');document.getElementById('helpSubMenu').classList.add('hidden')" class="w-full flex items-center px-3 py-2 text-xs font-medium text-[#171717] hover:bg-gray-50 transition-colors">联系我们</button>
+                            <button onclick="showContactModal('获取发票');document.getElementById('userDropdown').classList.add('hidden');document.getElementById('helpSubMenu').classList.add('hidden')" class="w-full flex items-center px-3 py-2 text-xs font-medium text-[#171717] hover:bg-gray-50 transition-colors">获取发票</button>
+                        </div>
+                    </div>
                     <div style="height:1px;background:#f3f4f6;margin:4px 0;"></div>
                     <button onclick="logout()" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>退出登录
@@ -860,8 +874,74 @@ function toggleUserMenu(e) {
     const menu = document.getElementById('userDropdown');
     menu.classList.toggle('hidden');
 }
-document.addEventListener('click', () => {
+function toggleHelpSubMenu(e) {
+    e.stopPropagation();
+    const subMenu = document.getElementById('helpSubMenu');
+    if (subMenu) subMenu.classList.toggle('hidden');
+}
+
+function showFailureModal(errorMsg) {
+    const modal = document.createElement('div');
+    modal.className = 'confirm-modal';
+    modal.style.zIndex = '9999';
+    modal.onclick = (e) => { if(e.target===modal) modal.remove(); };
+    modal.innerHTML = `<div class="confirm-inner animate-fade" style="max-width:320px;padding:24px 24px 20px;">
+        <div style="width:48px;height:48px;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3 style="font-size:16px;font-weight:700;color:#111;margin-bottom:8px;">生成失败</h3>
+        <p style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:6px;">抱歉，任务生成失败，积分已返还。</p>
+        ${errorMsg ? `<p style="font-size:11px;color:#9ca3af;margin-bottom:20px;background:#f9fafb;padding:8px;border-radius:8px;max-height:80px;overflow-y:auto;word-break:break-all;">原因: ${errorMsg}</p>` : ''}
+        <button onclick="this.closest('.confirm-modal').remove()" style="width:100%;padding:10px;border:none;border-radius:12px;font-size:13px;font-weight:700;color:#fff;background:#262626;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='#404040'" onmouseout="this.style.background='#262626'">知道了</button>
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+function showContactModal(title) {
+    const modal = document.createElement('div');
+    modal.className = 'recharge-modal';
+    modal.style.zIndex = '9999';
+    modal.onclick = (e) => { if(e.target===modal) modal.remove(); };
+    modal.innerHTML = `<div class="recharge-inner animate-fade" style="max-width:320px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#f8fafc 0%,#f3f4f6 100%);padding:22px 22px 18px;position:relative;">
+            <button onclick="this.closest('.recharge-modal').remove()" style="position:absolute;top:12px;right:14px;color:#4b5563;font-size:22px;line-height:1;background:none;border:none;cursor:pointer;padding:2px 6px;">&times;</button>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:34px;height:34px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.05);padding:6px;color:#262626;">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:#111;">${title}</div>
+                    <div style="font-size:10px;color:#6b7280;margin-top:2px;">用微信扫一扫添加</div>
+                </div>
+            </div>
+        </div>
+        <div style="padding:22px 22px 8px;text-align:center;background:#fff;">
+            <div style="display:inline-block;padding:14px;background:#fff;border:1px solid #f0f0f0;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,0.04);">
+                <img src="联系方式.PNG" alt="联系方式二维码" style="width:210px;height:210px;display:block;image-rendering:pixelated;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div style="display:none;width:210px;height:210px;background:#fafafa;border-radius:8px;align-items:center;justify-content:center;color:#9ca3af;font-size:11px;">二维码加载失败</div>
+            </div>
+        </div>
+        <div style="padding:12px 22px 20px;">
+            <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:10px;">
+                <img src="SVG/微信.svg" alt="微信" style="width:16px;height:16px;">
+                <span style="font-size:12px;font-weight:600;color:#16a34a;">微信客服</span>
+            </div>
+            <div style="font-size:11px;color:#6b7280;line-height:1.7;text-align:center;background:#fafafa;border-radius:10px;padding:10px 12px;">
+                扫码添加官方客服微信，工作日 9:00-18:00 为您解答问题或处理发票。
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+document.addEventListener('click', (e) => {
     const menu = document.getElementById('userDropdown');
+    const helpWrap = document.getElementById('helpMenuWrap');
+    const helpSub = document.getElementById('helpSubMenu');
+
+    if(helpWrap && helpWrap.contains(e.target)) return; // 点击了帮助按钮自身或子菜单，不在此处关闭父菜单
+
+    if (helpSub && !helpSub.classList.contains('hidden')) helpSub.classList.add('hidden');
     if(menu && !menu.classList.contains('hidden')) menu.classList.add('hidden');
 });
 
@@ -1483,7 +1563,9 @@ async function pollOutpaintStatus(t) {
                 // 从 runningTasks 移除失败任务，避免幽灵卡片
                 const failIdx = runningTasks.findIndex(x => x.id === t.id);
                 if (failIdx !== -1) runningTasks.splice(failIdx, 1);
-                renderResults(); saveRunningTasksToStorage(); return;
+                renderResults(); saveRunningTasksToStorage();
+                showFailureModal(t.errorMsg);
+                return;
             }
             t.pollT=setTimeout(run,3000);
         } catch(e){ t.pollT=setTimeout(run,5000); }
@@ -2876,7 +2958,9 @@ async function pollTaskStatus(t) {
                 // 从 runningTasks 移除失败任务，避免幽灵卡片
                 const failIdx = runningTasks.findIndex(x => x.id === t.id);
                 if (failIdx !== -1) runningTasks.splice(failIdx, 1);
-                renderResults(); saveRunningTasksToStorage(); updateCostDisplay(); return;
+                renderResults(); saveRunningTasksToStorage(); updateCostDisplay();
+                showFailureModal(t.errorMsg);
+                return;
             }
             // still pending
             t.pollT=setTimeout(run,2500);
@@ -3140,7 +3224,7 @@ async function pollVideoTask(taskId){
                 const vs=Array.isArray(vu)?vu[0]:String(vu||'');
                 const st=data.status;const stStr=String(st||'').toLowerCase();
                 if(vs&&(vs.startsWith('http')||vs.startsWith('//'))){vidState.status='success';vidState.resultUrl=vs;clearInterval(vidState.timer);renderVideoResult();checkUserInfo();saveToHistory('video_grok_imagine', vidState.prompt, [vs], 'video', vidState.refUrl?[vidState.refUrl]:[], vidState.duration+'秒', vidState.aspectRatio);return;}
-                if(['fail','error'].includes(stStr)||st===3){vidState.status='error';vidState.errorMsg=data.error||data.err_msg||d.msg;clearInterval(vidState.timer);renderVideoResult();return;}
+                if(['fail','error'].includes(stStr)||st===3){vidState.status='error';vidState.errorMsg=data.error||data.err_msg||d.msg;clearInterval(vidState.timer);renderVideoResult();showFailureModal(vidState.errorMsg);return;}
                 vidState.pollT=setTimeout(run,4000);
             } else vidState.pollT=setTimeout(run,4000);
         }catch(e){vidState.pollT=setTimeout(run,4000);}
