@@ -508,8 +508,8 @@
                                 <div class="model-opt" data-value="image_nanoBanana_pro" data-icon="SVG/NanoBanana1.svg" data-label="NanoBanana Pro" onclick="selectModel(this)">
                                     <img src="SVG/NanoBanana1.svg" class="w-5 h-5 rounded-sm"><span>NanoBanana Pro</span>
                                 </div>
-                                <div class="model-opt" data-value="image_gpt" data-icon="SVG/GTP1.5.svg" data-label="GPT-Image 1.5" onclick="selectModel(this)">
-                                    <img src="SVG/GTP1.5.svg" class="w-5 h-5 rounded-sm"><span>GPT-Image 1.5</span>
+                                <div class="model-opt" data-value="image_gpt" data-icon="SVG/GTP1.5.svg" data-label="GPT-Image 2.0" onclick="selectModel(this)">
+                                    <img src="SVG/GTP1.5.svg" class="w-5 h-5 rounded-sm"><span>GPT-Image 2.0</span>
                                 </div>
                                 <div class="model-opt" data-value="wan2.7-image" data-icon="SVG/wan2.7.svg" data-label="wan2.7-image" onclick="selectModel(this)">
                                     <img src="SVG/wan2.7.svg" class="w-5 h-5 rounded-sm"><span>wan2.7-image</span>
@@ -1898,7 +1898,7 @@ function syncModelOptions(model) {
     const RATIO_ICON = {'auto':'SVG/智能比例.svg','1:1':'SVG/1_1.svg','2:3':'SVG/2_3.svg','3:2':'SVG/3_2.svg','3:4':'SVG/3_4.svg','4:3':'SVG/4_3.svg','9:16':'SVG/9_16.svg','16:9':'SVG/16_9.svg','21:9':'SVG/21_9.svg'};
     function ratioOpt(v,label,active){return `<div class="model-opt${active?' active':''}" data-value="${v}" data-icon="${RATIO_ICON[v]||'SVG/智能比例.svg'}" onclick="selectDropdown('aspect',this)"><img src="${RATIO_ICON[v]||'SVG/智能比例.svg'}" class="w-4 h-4"><span>${label}</span></div>`;}
     if(isGpt) {
-        aspectDD.innerHTML = ratioOpt('auto','自动比率',true)+ratioOpt('1:1','1:1')+ratioOpt('3:2','3:2')+ratioOpt('2:3','2:3');
+        aspectDD.innerHTML = ratioOpt('auto','自动比率',true)+ratioOpt('16:9','16:9')+ratioOpt('9:16','9:16')+ratioOpt('1:1','1:1')+ratioOpt('3:2','3:2')+ratioOpt('2:3','2:3');
         document.getElementById('aspectSelect').value='auto';
         document.getElementById('aspectLabel').textContent='自动比率';
         document.getElementById('aspectIcon').src='SVG/智能比例.svg';
@@ -2223,7 +2223,7 @@ function galRenderDetailSide() {
     const MODEL_LABEL = {
         'wan2.7-image-pro':'wan2.7-image-pro','wan2.7-image':'wan2.7-image',
         'image_nanoBanana2':'NanoBanana 2','image_nanoBanana_pro':'NanoBanana Pro',
-        'image_gpt':'GPT-Image 1.5','doubao_seedream':'Image 5.0 Lite',
+        'image_gpt':'GPT-Image 2.0','doubao_seedream':'Image 5.0 Lite',
         'video_grok_imagine':'Grok Imagine','outpaint':'智能扩图'
     };
     const isVideo = item.type === 'video';
@@ -2464,7 +2464,7 @@ function renderHistoryCards(items, histType) {
     const modelLabel = {
         'wan2.7-image-pro':'wan2.7-image-pro', 'wan2.7-image':'wan2.7-image',
         'image_nanoBanana2':'NanoBanana 2', 'image_nanoBanana_pro':'NanoBanana Pro',
-        'image_gpt':'GPT-Image 1.5', 'doubao_seedream':'Image 5.0 Lite',
+        'image_gpt':'GPT-Image 2.0', 'doubao_seedream':'Image 5.0 Lite',
         'video_grok_imagine':'Grok Imagine','outpaint':'智能扩图'
     };
 
@@ -2709,8 +2709,8 @@ async function handleMainAction() {
         
         const task = {
             id: ++taskIdCounter, prompt, model, size,
-            aspectRatio: model==='image_gpt' ? 'auto' : aspectVal,
-            gptSize: model==='image_gpt' ? aspectVal : 'auto',
+            aspectRatio: aspectVal,
+            gptSize: 'auto',
             genCount, 
             refs: readyRefs.map(r=>({...r})),
             refUrls: readyRefs.map(r=>r.url),
@@ -2772,7 +2772,7 @@ async function startSingleTask(t) {
         if(gcNum>1){taskBody.sequential_image_generation="auto";taskBody.sequential_image_generation_options={max_images:gcNum};}else taskBody.sequential_image_generation="disabled";
     } else if(t.model==='image_gpt') {
         provider='wuyin'; action=t.model;
-        taskBody={prompt:t.prompt.trim(),size:t.gptSize||'auto'};
+        taskBody={prompt:t.prompt.trim(),size:t.aspectRatio||'auto'};
         if(readyRefs.length>0)taskBody.urls=readyRefs;
     } else {
         provider='wuyin'; action=t.model;
@@ -2906,7 +2906,7 @@ function renderResults() {
     const MODEL_LABEL = {
         'wan2.7-image-pro':'wan2.7-image-pro','wan2.7-image':'wan2.7-image',
         'image_nanoBanana2':'NanoBanana 2','image_nanoBanana_pro':'NanoBanana Pro',
-        'image_gpt':'GPT-Image 1.5','doubao_seedream':'Image 5.0 Lite',
+        'image_gpt':'GPT-Image 2.0','doubao_seedream':'Image 5.0 Lite',
         'video_grok_imagine':'Grok Imagine','outpaint':'智能扩图'
     };
 

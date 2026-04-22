@@ -493,10 +493,15 @@ app.post('/api/task/submit', secureAuth, rateLimit(20, 60000), async (req, res) 
         const vidCostMap = { 6: 60, 10: 100, 15: 150, 20: 200, 30: 300 };
         cost = vidCostMap[dur] || Math.ceil(dur * 10);
     } else {
-        const sizeKey = (taskBody?.size || '1K').toUpperCase();
-        const validSize = ['1K','2K','4K'].includes(sizeKey) ? sizeKey : '1K';
-        const modelCosts = costTable[key];
-        cost = modelCosts ? (modelCosts[validSize] || modelCosts['1K']) : 10;
+        // 对于 image_gpt，它的 size 是比例字符串（如 "16:9", "auto"），不参与 resolution 计费，统一定价即可
+        if (key === 'image_gpt') {
+            cost = costTable[key] ? costTable[key]['1K'] : 20;
+        } else {
+            const sizeKey = (taskBody?.size || '1K').toUpperCase();
+            const validSize = ['1K','2K','4K'].includes(sizeKey) ? sizeKey : '1K';
+            const modelCosts = costTable[key];
+            cost = modelCosts ? (modelCosts[validSize] || modelCosts['1K']) : 10;
+        }
     }
 
     if (req.user.coins < cost) return res.status(402).json({ error: '余额不足，请充值' });
@@ -733,10 +738,14 @@ app.post('/api/proxy/:provider/:action?', secureAuth, rateLimit(20, 60000), asyn
         const vidCostMap = { 6: 60, 10: 100, 15: 150, 20: 200, 30: 300 };
         cost = vidCostMap[dur] || Math.ceil(dur * 10);
     } else {
-        const sizeKey2 = (req.body?.size || '1K').toUpperCase();
-        const validSize2 = ['1K','2K','4K'].includes(sizeKey2) ? sizeKey2 : '1K';
-        const modelCosts2 = costTable2[key];
-        cost = modelCosts2 ? (modelCosts2[validSize2] || modelCosts2['1K']) : 10;
+        if (key === 'image_gpt') {
+            cost = costTable2[key] ? costTable2[key]['1K'] : 20;
+        } else {
+            const sizeKey2 = (req.body?.size || '1K').toUpperCase();
+            const validSize2 = ['1K','2K','4K'].includes(sizeKey2) ? sizeKey2 : '1K';
+            const modelCosts2 = costTable2[key];
+            cost = modelCosts2 ? (modelCosts2[validSize2] || modelCosts2['1K']) : 10;
+        }
     }
 
     if (req.user.coins < cost) return res.status(402).json({ error: '余额不足，请充值' });
