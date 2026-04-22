@@ -1563,8 +1563,18 @@ window._userHasScrolledUp = false;
 // 用 token 的哈希值标识用户身份，防止不同账号的任务窜台
 function _tokenHash() {
     if (!token) return '';
-    // 简单哈希：取 token 前8位 + 后8位，足够区分不同账号
-    return token.slice(0, 8) + token.slice(-8);
+    try {
+        // 尝试从 JWT payload 中提取真正的 userId，做到 100% 隔离
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload && payload.id) return String(payload.id);
+    } catch(e) {}
+    // 降级：如果不是 JWT 或者解析失败，使用完整的 token 哈希
+    let hash = 0;
+    for (let i = 0; i < token.length; i++) {
+        hash = ((hash << 5) - hash) + token.charCodeAt(i);
+        hash |= 0;
+    }
+    return String(hash);
 }
 
 function saveRunningTasksToStorage() {
