@@ -461,7 +461,8 @@ const taskQueue = new Map(); // localTaskId -> { userId, status, resultUrls, err
 setInterval(() => {
     const now = Date.now();
     for (const [id, t] of taskQueue) {
-        if (now - t.createdAt > 30 * 60 * 1000 && t.status !== 'pending') taskQueue.delete(id);
+        // 强制清理超过30分钟的所有任务，防止特殊任务造成内存泄漏
+        if (now - t.createdAt > 30 * 60 * 1000) taskQueue.delete(id);
     }
 }, 60000);
 
