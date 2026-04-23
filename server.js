@@ -369,6 +369,20 @@ app.post('/api/auth/login-email', async (req, res) => {
 
 // ================= 3. 查询进度代理 (解决跨域，防止转圈) =================
 app.get('/api/proxy/wanx/tasks/:taskId', secureAuth, async (req, res) => {
+    // 增加严格校验：只有这个任务确实属于当前用户，才允许查询进度
+    // 由于此接口是通过 remote task id 查询，后端需遍历 taskQueue 来验证归属
+    let isOwner = false;
+    for (const [id, t] of taskQueue) {
+        if (t.remoteTaskId === req.params.taskId || t.pollTaskId === req.params.taskId) {
+            if (t.userId === req.user.id) isOwner = true;
+            break;
+        }
+    }
+    // 临时放行策略：为了防止旧任务卡死，如果不在内存队列中，也拒绝（或可以选放行，但为了安全建议拒绝）
+    if (!isOwner) {
+        return res.status(403).json({ error: '无权访问或任务已过期' });
+    }
+
     try {
         const response = await axios.get(`https://dashscope.aliyuncs.com/api/v1/tasks/${req.params.taskId}`, { headers: { 'Authorization': `Bearer ${WANX_KEY}` } });
         res.json(response.data);
@@ -376,6 +390,18 @@ app.get('/api/proxy/wanx/tasks/:taskId', secureAuth, async (req, res) => {
 });
 
 app.get('/api/proxy/wuyin/detail', secureAuth, async (req, res) => {
+    // 增加严格校验：只有这个任务确实属于当前用户，才允许查询进度
+    let isOwner = false;
+    for (const [id, t] of taskQueue) {
+        if (t.remoteTaskId === req.query.id || t.pollTaskId === req.query.id) {
+            if (t.userId === req.user.id) isOwner = true;
+            break;
+        }
+    }
+    if (!isOwner) {
+        return res.status(403).json({ error: '无权访问或任务已过期' });
+    }
+
     try {
         const response = await axios.get(`https://api.wuyinkeji.com/api/async/detail?id=${req.query.id}&key=${WUYIN_KEY}`);
         // 临时调试：打印完整返回结构
@@ -435,7 +461,8 @@ const taskQueue = new Map(); // localTaskId -> { userId, status, resultUrls, err
 setInterval(() => {
     const now = Date.now();
     for (const [id, t] of taskQueue) {
-        if (now - t.createdAt > 30 * 60 * 1000 && t.status !== 'pending') taskQueue.delete(id);
+        // 强制清理超过30分钟的所有任务，防止特殊任务造成内存泄漏
+        if (now - t.createdAt > 30 * 60 * 1000) taskQueue.delete(id);
     }
 }, 60000);
 
@@ -465,11 +492,18 @@ app.post('/api/task/submit', secureAuth, rateLimit(20, 60000), async (req, res) 
         const dur = parseInt(taskBody?.duration) || 10;
         const vidCostMap = { 6: 60, 10: 100, 15: 150, 20: 200, 30: 300 };
         cost = vidCostMap[dur] || Math.ceil(dur * 10);
+    } else if (act === 'responses') {
+        cost = 10;
     } else {
-        const sizeKey = (taskBody?.size || '1K').toUpperCase();
-        const validSize = ['1K','2K','4K'].includes(sizeKey) ? sizeKey : '1K';
-        const modelCosts = costTable[key];
-        cost = modelCosts ? (modelCosts[validSize] || modelCosts['1K']) : 10;
+        // 对于 image_gpt，它的 size 是比例字符串（如 "16:9", "auto"），不参与 resolution 计费，统一定价即可
+        if (key === 'image_gpt') {
+            cost = costTable[key] ? costTable[key]['1K'] : 20;
+        } else {
+            const sizeKey = (taskBody?.size || '1K').toUpperCase();
+            const validSize = ['1K','2K','4K'].includes(sizeKey) ? sizeKey : '1K';
+            const modelCosts = costTable[key];
+            cost = modelCosts ? (modelCosts[validSize] || modelCosts['1K']) : 10;
+        }
     }
 
     if (req.user.coins < cost) return res.status(402).json({ error: '余额不足，请充值' });
@@ -706,10 +740,14 @@ app.post('/api/proxy/:provider/:action?', secureAuth, rateLimit(20, 60000), asyn
         const vidCostMap = { 6: 60, 10: 100, 15: 150, 20: 200, 30: 300 };
         cost = vidCostMap[dur] || Math.ceil(dur * 10);
     } else {
-        const sizeKey2 = (req.body?.size || '1K').toUpperCase();
-        const validSize2 = ['1K','2K','4K'].includes(sizeKey2) ? sizeKey2 : '1K';
-        const modelCosts2 = costTable2[key];
-        cost = modelCosts2 ? (modelCosts2[validSize2] || modelCosts2['1K']) : 10;
+        if (key === 'image_gpt') {
+            cost = costTable2[key] ? costTable2[key]['1K'] : 20;
+        } else {
+            const sizeKey2 = (req.body?.size || '1K').toUpperCase();
+            const validSize2 = ['1K','2K','4K'].includes(sizeKey2) ? sizeKey2 : '1K';
+            const modelCosts2 = costTable2[key];
+            cost = modelCosts2 ? (modelCosts2[validSize2] || modelCosts2['1K']) : 10;
+        }
     }
 
     if (req.user.coins < cost) return res.status(402).json({ error: '余额不足，请充值' });
@@ -729,6 +767,17 @@ app.post('/api/proxy/:provider/:action?', secureAuth, rateLimit(20, 60000), asyn
             resp = await axios.post(`https://api.wuyinkeji.com/api/async/${act}`, req.body, { 
                 headers: { 'Authorization': WUYIN_KEY, 'Content-Type': 'application/json' } 
             });
+            // 为视频任务打个补丁：如果是视频生成，我们把远端任务 id 存进全局内存，用来做归属权校验
+            if (key === 'video_grok_imagine' && resp.data && resp.data.data && (resp.data.data.task_id || resp.data.data.id)) {
+                const rTaskId = resp.data.data.task_id || resp.data.data.id;
+                taskQueue.set('vid_' + rTaskId, {
+                    userId: req.user.id,
+                    remoteTaskId: rTaskId,
+                    pollTaskId: rTaskId,
+                    createdAt: Date.now(),
+                    status: 'pending'
+                });
+            }
         } else if (provider === 'doubao') {
             const ep = act === 'responses' ? 'https://ark.cn-beijing.volces.com/api/v3/responses' : 'https://ark.cn-beijing.volces.com/api/v3/images/generations';
             resp = await axios.post(ep, req.body, { headers: { 'Authorization': `Bearer ${DOUBAO_KEY}`, 'Content-Type': 'application/json' } });
@@ -857,6 +906,13 @@ app.post('/api/outpaint/submit', secureAuth, rateLimit(10, 60000), async (req, r
         const d = resp.data;
         const taskId = d.output?.task_id;
         if (taskId) {
+            // 将扩图任务存入内存以供轮询鉴权
+            taskQueue.set('op_' + taskId, {
+                userId: req.user.id,
+                pollTaskId: taskId,
+                createdAt: Date.now(),
+                status: 'pending'
+            });
             res.json({ code: 200, taskId });
         } else {
             await db.query('UPDATE users SET coins = coins + ? WHERE id = ?', [OUTPAINT_COST, req.user.id]);
@@ -875,6 +931,19 @@ app.post('/api/outpaint/submit', secureAuth, rateLimit(10, 60000), async (req, r
 app.get('/api/outpaint/status', secureAuth, async (req, res) => {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: '缺少任务ID' });
+
+    // 增加严格校验：验证任务归属
+    let isOwner = false;
+    for (const [key, t] of taskQueue) {
+        if (t.remoteTaskId === id || t.pollTaskId === id) {
+            if (t.userId === req.user.id) isOwner = true;
+            break;
+        }
+    }
+    if (!isOwner) {
+        return res.status(403).json({ error: '无权访问或任务已过期' });
+    }
+
     try {
         const resp = await axios.get(`https://dashscope.aliyuncs.com/api/v1/tasks/${id}`, {
             headers: { 'Authorization': `Bearer ${WANX_KEY}` }, timeout: 15000
