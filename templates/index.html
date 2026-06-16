@@ -88,13 +88,23 @@
             successDiv.classList.add('hidden');
 
             try {
-                // Use a relative path to ensure the request goes to the same origin
-                // If it still fails, it might be an issue with file processing time (timeout) or CORS if accessing via IP
-                const url = window.location.origin + '/api/obfuscate';
-                const response = await fetch(url, {
+                // Determine API URL (handle both standard usage and IP/localhost)
+                let apiUrl = '/api/obfuscate';
+                if (window.location.protocol === 'file:') {
+                    apiUrl = 'http://127.0.0.1:5000/api/obfuscate';
+                }
+
+                // Allow up to 2 minutes for processing
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     let errorMessage = `Server error: ${response.status}`;
@@ -130,8 +140,12 @@
             } catch (error) {
                 loadingDiv.classList.add('hidden');
                 let userMsg = error.message;
-                if (userMsg.includes('Failed to fetch') || userMsg.includes('NetworkError')) {
-                    userMsg = 'Network error or processing timeout. Please ensure the server is running and the image is not too large.';
+                console.error("Fetch error:", error);
+
+                if (error.name === 'AbortError') {
+                    userMsg = 'Processing timeout. The image is too large or the server took too long.';
+                } else if (userMsg.includes('Failed to fetch') || userMsg.includes('NetworkError') || error instanceof TypeError) {
+                    userMsg = `Network error. Make sure the Flask server is running (python app.py) on ${window.location.hostname}:5000 and the image isn't too large.`;
                 }
                 showError(userMsg);
             } finally {
