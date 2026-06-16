@@ -4,9 +4,10 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import numpy as np
 import io
 
-def apply_glaze_like_noise(img, strength=10):
+def apply_glaze_like_noise(img, strength=8):
     """
-    Applies an adversarial-like noise pattern to the image to disrupt deep learning models.
+    Applies an adversarial-like noise pattern to the image to disrupt deep learning models
+    while trying to maintain visual quality.
     """
     arr = np.array(img, dtype=np.float32)
     # Generate high-frequency sine wave noise
@@ -29,45 +30,31 @@ def apply_glaze_like_noise(img, strength=10):
 def process_image(input_path, output_path):
     img = Image.open(input_path).convert("RGB")
 
-    # Advanced obfuscation techniques to alter image characteristics
+    # 1. Subtle Glaze-like noise to disrupt spatial patterns without destroying the image
+    img = apply_glaze_like_noise(img, strength=5)
 
-    # 1. Apply Glaze-like noise to disrupt spatial patterns
-    img = apply_glaze_like_noise(img, strength=25)
-
-    # 2. Add film grain
+    # 2. Add very light film grain
     arr = np.array(img, dtype=np.float32)
-    grain = np.random.normal(0, 20, arr.shape)
+    grain = np.random.normal(0, 4, arr.shape)
     arr = np.clip(arr + grain, 0, 255).astype(np.uint8)
     img = Image.fromarray(arr)
 
-    # 3. Simulate extreme downsampling and upsampling
+    # 3. Simulate minor downsampling and upsampling to remove micro-textures
     w, h = img.size
-    img = img.resize((int(w*0.15), int(h*0.15)), Image.NEAREST)
+    img = img.resize((int(w * 0.8), int(h * 0.8)), Image.BILINEAR)
     img = img.resize((w, h), Image.BICUBIC)
 
-    # 4. Save with heavy JPEG compression
+    # 4. Apply a very slight blur
+    img = img.filter(ImageFilter.GaussianBlur(radius=0.4))
+
+    # 5. Save with moderate JPEG compression (removes some high-frequency data)
     buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=20)
+    img.save(buffer, format="JPEG", quality=85)
     buffer.seek(0)
     img = Image.open(buffer)
 
-    # 5. Rotation to misalign grids
-    img = img.rotate(3.5, expand=False, resample=Image.BICUBIC, fillcolor='white')
-
-    # 6. Apply slight blur
-    img = img.filter(ImageFilter.GaussianBlur(radius=1.2))
-
-    # 7. Add a subtle pattern overlay
-    arr = np.array(img, dtype=np.float32)
-    x = np.arange(arr.shape[1])
-    y = np.arange(arr.shape[0])
-    X, Y = np.meshgrid(x, y)
-    grid = (X % 4 < 2) & (Y % 4 < 2)
-    arr[grid] *= 0.95
-    img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
-
     # Final save
-    img.save(output_path, "JPEG", quality=65, optimize=True)
+    img.save(output_path, "JPEG", quality=90, optimize=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Obfuscate image")
