@@ -2,6 +2,7 @@ from flask import Flask, request, send_file, render_template, jsonify, after_thi
 import os
 import uuid
 import tempfile
+import traceback
 from obfuscate import process_image
 
 app = Flask(__name__)
@@ -9,18 +10,29 @@ app = Flask(__name__)
 # Ensure there's a temporary directory for processing
 UPLOAD_FOLDER = tempfile.gettempdir()
 
+# Enable CORS for development
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/api/obfuscate', methods=['POST'])
+@app.route('/api/obfuscate', methods=['POST', 'OPTIONS'])
 def api_obfuscate():
+    if request.method == 'OPTIONS':
+        return '', 200
+
     if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
+        return jsonify({'error': 'No image provided in request payload'}), 400
 
     file = request.files['image']
     if file.filename == '':
-        return jsonify({'error': 'Empty file name'}), 400
+        return jsonify({'error': 'Empty file name uploaded'}), 400
 
     if file:
         # Generate unique filenames
@@ -51,13 +63,17 @@ def api_obfuscate():
             # Send the file back
             return send_file(output_path, mimetype='image/jpeg', as_attachment=True, download_name='obfuscated.jpg')
         except Exception as e:
+            # Log the full traceback for debugging
+            print("ERROR IN PROCESSING:")
+            traceback.print_exc()
             # Clean up the input file if processing fails
             if os.path.exists(input_path):
                 try:
                     os.remove(input_path)
                 except:
                     pass
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'error': f"Processing error: {str(e)}"}), 500
 
 if __name__ == '__main__':
+    # Listen on all interfaces so it works across network
     app.run(host='0.0.0.0', port=5000, debug=True)

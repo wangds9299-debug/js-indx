@@ -88,22 +88,33 @@
             successDiv.classList.add('hidden');
 
             try {
-                const response = await fetch('/api/obfuscate', {
+                // Use a relative path to ensure the request goes to the same origin
+                // If it still fails, it might be an issue with file processing time (timeout) or CORS if accessing via IP
+                const url = window.location.origin + '/api/obfuscate';
+                const response = await fetch(url, {
                     method: 'POST',
                     body: formData
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({error: 'Network response was not ok'}));
-                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                    let errorMessage = `Server error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData && errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                    } catch (e) {
+                        // Ignore JSON parsing errors for non-JSON responses
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 // Handle file download
                 const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
+                const objUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
-                a.href = url;
+                a.href = objUrl;
                 // Original file name suffix
                 const originalName = imageInput.files[0].name;
                 const nameParts = originalName.split('.');
@@ -112,13 +123,17 @@
                 a.download = `${baseName}_obfuscated.jpg`;
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
+                window.URL.revokeObjectURL(objUrl);
 
                 loadingDiv.classList.add('hidden');
                 successDiv.classList.remove('hidden');
             } catch (error) {
                 loadingDiv.classList.add('hidden');
-                showError(error.message);
+                let userMsg = error.message;
+                if (userMsg.includes('Failed to fetch') || userMsg.includes('NetworkError')) {
+                    userMsg = 'Network error or processing timeout. Please ensure the server is running and the image is not too large.';
+                }
+                showError(userMsg);
             } finally {
                 submitBtn.disabled = false;
             }
