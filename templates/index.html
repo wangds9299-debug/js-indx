@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Content Detection Bypass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-12 max-w-2xl">
+        <div class="bg-white rounded-xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">AI Content Detection Bypass</h1>
+            <p class="text-gray-600 mb-8 text-center">Upload an image to apply obfuscation techniques designed to evade AI generated content detectors.</p>
+
+            <form id="uploadForm" class="space-y-6">
+                <div class="flex items-center justify-center w-full">
+                    <label for="imageInput" class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                            <p class="text-xs text-gray-500">PNG, JPG or JPEG</p>
+                            <p id="fileName" class="mt-2 text-sm font-medium text-blue-600 truncate max-w-[200px]"></p>
+                        </div>
+                        <input id="imageInput" name="image" type="file" class="hidden" accept="image/png, image/jpeg, image/jpg" />
+                    </label>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-lg px-5 py-3 text-center transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed">
+                    Process Image
+                </button>
+            </form>
+
+            <div id="status" class="hidden mt-6">
+                <div id="loading" class="hidden flex flex-col items-center justify-center">
+                    <svg aria-hidden="true" class="w-8 h-8 text-gray-200 animate-spin fill-blue-600 mb-2" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                        <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                    </svg>
+                    <span class="text-sm text-gray-600">Processing image... this may take a few seconds.</span>
+                </div>
+
+                <div id="error" class="hidden p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+                    <span class="font-medium">Error:</span> <span id="errorMsg"></span>
+                </div>
+
+                <div id="success" class="hidden p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
+                    <span class="font-medium">Success!</span> Your obfuscated image is downloading.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const fileName = document.getElementById('fileName');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const errorMsg = document.getElementById('errorMsg');
+        const successDiv = document.getElementById('success');
+
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                fileName.textContent = e.target.files[0].name;
+            } else {
+                fileName.textContent = '';
+            }
+        });
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (imageInput.files.length === 0) {
+                showError('Please select an image to upload.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', imageInput.files[0]);
+
+            // UI State
+            submitBtn.disabled = true;
+            statusDiv.classList.remove('hidden');
+            loadingDiv.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            successDiv.classList.add('hidden');
+
+            try {
+                // Determine API URL (handle both standard usage and IP/localhost)
+                let apiUrl = '/api/obfuscate';
+                if (window.location.protocol === 'file:') {
+                    apiUrl = 'http://127.0.0.1:5000/api/obfuscate';
+                }
+
+                // Allow up to 2 minutes for processing
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    let errorMessage = `Server error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData && errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                    } catch (e) {
+                        // Ignore JSON parsing errors for non-JSON responses
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                // Handle file download
+                const blob = await response.blob();
+                const objUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = objUrl;
+                // Original file name suffix
+                const originalName = imageInput.files[0].name;
+                const nameParts = originalName.split('.');
+                const ext = nameParts.pop();
+                const baseName = nameParts.join('.');
+                a.download = `${baseName}_obfuscated.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(objUrl);
+
+                loadingDiv.classList.add('hidden');
+                successDiv.classList.remove('hidden');
+            } catch (error) {
+                loadingDiv.classList.add('hidden');
+                let userMsg = error.message;
+                console.error("Fetch error:", error);
+
+                if (error.name === 'AbortError') {
+                    userMsg = 'Processing timeout. The image is too large or the server took too long.';
+                } else if (userMsg.includes('Failed to fetch') || userMsg.includes('NetworkError') || error instanceof TypeError) {
+                    userMsg = `Network error. Make sure the Flask server is running (python app.py) on ${window.location.hostname}:5000 and the image isn't too large.`;
+                }
+                showError(userMsg);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        function showError(message) {
+            statusDiv.classList.remove('hidden');
+            errorMsg.textContent = message;
+            errorDiv.classList.remove('hidden');
+            successDiv.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
